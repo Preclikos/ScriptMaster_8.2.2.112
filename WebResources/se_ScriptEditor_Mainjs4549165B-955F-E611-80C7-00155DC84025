@@ -1,0 +1,1606 @@
+/**Main App**/
+window.ScriptEditor = function(config,$,Q)	{
+	var _config = config;
+	var _checkForLink = function(entry){
+		var se = this;
+		if(typeof(entry)=="object"&&typeof(entry.link)!="undefined"){
+			var extract = config.NodeDataArray[entry.link]
+			return se[extract.fName](extract.args);
+		}else{
+			return new Q.Promise(function(resolve,reject){resolve(entry)});
+		}
+	}
+	
+	var _constructEntityName = function(entity){	//VERIFY name logic!
+		var name = entity;
+		var lastLetter = name[name.length-1];
+		switch(lastLetter){
+			case "s":
+				name = name+"es";
+				break;
+			case "x":
+				name = name+"es";
+				break;
+			case "y":
+				name = name.slice(0,-1)+"ies";
+				break;
+			default:
+				name = name+"s";
+				break;
+		}
+		return name;
+	}
+	var _constructSelectQuery = function(select){
+		var selectQuery = "$select="
+		
+		for(var i=0;i<select.length;i++){
+			selectQuery += select[i];
+			if(i!=select.length-1){
+				selectQuery += ",";
+			}
+		}
+		return selectQuery;
+	}
+	var _constructFilterQuery = function(filter){
+		var filterQuery = "$filter=";
+		/***group bit***/
+		//$filter=(bla eq bla and bla eq bla or (bla eq bla and bla eq bla))	//group 0,1		bla eq bla)and(
+		//filterQuery += "(";
+		//var groupCounter = 0;
+		for(var i=0; i<filter.length;i++){ //TODO: nested filters...
+			if(i==0 /*&& parseInt(filter[i][3]) != parseInt(filter[i+1][3])*/){
+				filterQuery += "(";
+			}
+			
+			filterQuery += filter[i][0]+" "+filter[i][1]+" "+filter[i][4];
+			
+			if(i!=0 && i!=filter.length-1 && parseInt(filter[i][3]) != parseInt(filter[i+1][3])){
+				filterQuery += ")";
+			}
+			
+			if(i!=filter.length-1){
+				filterQuery += " "+filter[i][2]+" ";
+			}
+			
+			if(i!=0 && i!=filter.length-1 && parseInt(filter[i][3]) < parseInt(filter[i+1][3])){
+				filterQuery += "(";
+			}
+			
+			if(i==filter.length-1){
+				//if(parseInt(filter[i][3]) != parseInt(filter[i-1][3]) && parseInt(filter[i][3]) != 0){
+					filterQuery += ")";
+				//}
+			}
+			
+		}
+		//filterQuery += ")";
+		return filterQuery;
+	}
+	
+	var _constructOrderByQuery = function(orderByObj){
+		var orderQuery = "$orderby=";
+		orderQuery += orderByObj.prop;
+		orderQuery += " ";
+		orderQuery += orderByObj.sign;
+		
+		return orderQuery;
+	}
+	
+	var _buildServerUrl = function(entity,id,select,filter,orderByObj){
+		// var entity = args[0];
+		// var id = args[1];
+		// var property = args[2];
+		
+		var returnURL = "";
+		var clientURL = Xrm.Page.context.getClientUrl()
+		var version = Xrm.Page.context.getVersion().substring(0,3);
+		if(parseFloat(version)>=8){
+			returnURL = clientURL+"/api/data/v"+version+"/";
+			if(entity){
+				var entityName = _constructEntityName(entity);
+				returnURL += entityName;
+				if(id!=""){
+					returnURL += "("+id+")"
+				}
+				if(select[0]!="" || filter[0]!=""){
+					returnURL += "?";
+				}
+				if(select[0]!=""){
+					returnURL += _constructSelectQuery(select);
+					returnURL += "&";
+				}
+				if(filter && filter[0]!=""){
+					returnURL += _constructFilterQuery(filter);
+					returnURL += "&";
+				}
+				if(orderByObj && orderByObj!=""){
+					returnURL += _constructOrderByQuery(orderByObj);
+					returnURL += "&";
+				}
+			}
+		}else{
+			returnURL = clientURL+"/"
+		}
+		//remove last empty '&'
+		if(returnURL[returnURL.length-1]=="&"){
+			returnURL = returnURL.slice(0,-1);
+		}
+		return returnURL;
+		//TODO: finish this
+	}
+	
+	/// <summary>
+	/// Procces Math statement
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	operator {String} [+,-,*,/,all Math methods]
+	/// @args[1]	:	left side value {Number,Link,Anything}
+	/// @args[2]	:	right side value {Number,Link,Anything}
+	/// </param>
+	var proccesMathStatement = function(args){
+		var se = this;
+
+		return new Q.Promise(function(resolve,reject){
+			var a = args[0];
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			Q.Promise.all([b,c]).then(function(values){
+				var left = typeof(values[0])=="string"?values[0].replace(",","."):values[0];
+				var right = typeof(values[1])=="string"?values[1].replace(",","."):values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement started<<< input: '"+left+" "+a+" "+right+"'|#|");
+				var result;
+				if(a.length === 1){
+					switch(a) {
+						case "+":
+							result = left + right;
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
+							resolve(result);
+							break;
+						case "-":
+							result = left - right;
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
+							resolve(result);
+							break;
+						case "*":
+							result = left * right;
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
+							resolve(result);
+							break;
+						case "/":
+							result = left / right;
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
+							resolve(result);
+							break;
+					}
+				}else if(a.length > 1){
+					result = Math[a](left,right);
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
+					resolve(result);
+				}
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Procces String statement
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	operator {String} [join,substring,trim,...]
+	/// @args[1]	:	array of string values {String,Link}["val1,{link:2},val3"]
+	/// @args[2]	:	parameter1 {String,Number,Link,Anything}
+	/// @args[3]	:	parameter2 {String,number,Link,Anything}
+	/// </param>
+	var proccesStringStatement = function(args){	//UNFINISHED
+		var se = this;
+
+		return new Q.Promise(function(resolve,reject){
+			var a = args[0];
+			/**process second argument of string values - check all for link and resolve value**/
+			var b = args[1].split(",");
+			var c = [];
+			for(var i =0; i<b.length;i++){
+				c.push(se._checkForLink(b[i]));
+			}
+			var prom = function(arr){
+				return new Q.Promise(function(res,rej){
+					Q.Promise.all(arr).then(function(vals){
+						res(vals);
+					})
+				})
+			}
+			var f = prom(c);
+			/***/
+			//var b = se._checkForLink(args[1]);
+			var d = se._checkForLink(args[2]);
+			var e = se._checkForLink(args[3]);
+			Q.Promise.all([f,d,e]).then(function(values){
+				debugger;
+				var strings = values[0];
+				var par1 = values[1];
+				var par2 = values[2];
+				var result = "";
+				resolve(result);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// join Strings function
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	separator {String,Link}
+	/// @args[1]	:	string1 {String,Number,Link,Anything}
+	/// @args[2]	:	string2 {String,number,Link,Anything}
+	/// </param>
+	var concatStrings = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			Q.Promise.all([a,b,c]).then(function(values){
+				var separator = values[0];
+				var string1 = values[1];
+				var string2 = values[2];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>concatStrings started<<< input: '"+string1+" "+separator+" "+string2+"'|#|");
+				var result = string1.concat(separator,string2);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>concatStrings ended<<< result: '"+result+"'|#|");
+				resolve(result);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Relay value from argument to return value
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : value {String,Link,Number}
+	/// </param>
+	var relayValue = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			Q.Promise.all([a]).then(function(values){
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>relayValue started<<< input: '"+values[0]+"'|#|");
+				var retVal = "";
+				if(isNaN(parseFloat(values[0]))){
+					retVal = values[0];
+				}else{
+					retVal = parseFloat(values[0]);
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>relayValue ended<<< result: '"+retVal+"'|#|");
+				resolve(retVal);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Gets field value in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : field name {String,Link}
+	/// </param>
+	var getFormFieldValue = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			Q.Promise.all([a]).then(function(values){
+				var fieldName = values[0]
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormFieldValue started<<< input: fieldName: '"+fieldName+"'|#|");
+				var val = "";
+				switch(Xrm.Page.getAttribute(fieldName).getAttributeType()){
+					case "lookup":
+						val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+						if(val!==""){
+							val = val[0].name
+						}
+						break;
+					case "datetime":
+						val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+						if(val!==""){
+							val = val.getTime();
+						}
+						break;
+					default:
+					val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+						break;
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormFieldValue ended<<< result: "+val+"|#|");
+				resolve(val);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Gets multilookup entity name string current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : field name {String,Link}
+	/// </param>
+	var getMultiLookupValueType = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			Q.Promise.all([a]).then(function(values){
+				var fieldName = values[0]
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getMultiLookupValueType started<<< input: fieldName: '"+fieldName+"'|#|");
+				var val = "";
+				if(Xrm.Page.getAttribute(fieldName)!==null){
+					var fieldVal = Xrm.Page.getAttribute(fieldName).getValue();
+					if(fieldVal!==null && fieldVal.length!=0){
+						var type = parseInt(fieldVal[0].type);
+						var availableTypes = Xrm.Page.getAttribute(fieldName).getLookupDataAttribute().get_attributeMetadata().LookupTypeNames;
+						var match = $.grep(availableTypes, function(n,i) {
+								return n.EntityTypeId === type;
+							});
+						if($(match).length!=0){
+							val = match[0].EntityName;
+						}
+					}
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getMultiLookupValueType ended<<< result: "+val+"|#|");
+				resolve(val);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Gets currrent user lookupObj
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// </param>
+	var getCurrentUser = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var userID = Xrm.Page.context.getUserId();
+			var userName = Xrm.Page.context.getUserName();
+			var entityType = "systemuser";
+			if(userID != null && userName != null){
+				var LO = [];
+				LO[0] = {};
+				LO[0].id = userID;
+				LO[0].name = userName;
+				LO[0].entityType = entityType;
+				
+				resolve(LO);
+			}else{
+				resolve("");
+			}
+		});
+	}
+	
+	/// <summary>
+	/// Gets field lookup property value in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : field name {String,Link}
+	/// @args[1] : property/ies name {String,Link} ["propName"]|["propName1,propName2,propName3"]
+	/// @args[2] : associated lookup entity name {String,Link}
+	/// @args[3] : associated lookup property/ies name {String,Link}["propName"]|["propName1,propName2,propName3"]
+	/// </param>
+	/// <note>
+	/// no multiple properties yet
+	/// if only args[0-1] => returns single property value
+	///	if args[0-3] => returns lookup object, args[3] is expected to be name of id field of args[2]
+	/// </note>
+	var getFormLookupValue = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			var d = se._checkForLink(args[3]);
+			Q.Promise.all([a,b,c,d]).then(function(values){
+				var fieldName = values[0];
+				var property = values[1];
+				var associatedLookupEntityName = values[2]||"";
+				var associatedLookupProperty = values[3]||"";
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue started<<< input: fieldName: '"+fieldName+"' property: '"+property+"' associatedLookupEntityName: '"+associatedLookupEntityName+"' associatedLookupProperty: '"+associatedLookupProperty+"'|#|");
+				var createLookupObject = function(l_Id,l_Name,l_EntityType){
+					var lookupObject = [];
+					lookupObject[0] = {};
+					lookupObject[0].id = "{"+l_Id+"}";
+					lookupObject[0].name = l_Name;
+					lookupObject[0].entityType = l_EntityType;
+					return lookupObject;
+				}
+				var makeRESTcall = function(/*passedResolve*/){
+					if(associatedLookupEntityName != ""){
+						property = "_"+property+"_value"
+					}
+					se.retrieveSingleEA([entity,id,property]).then(function(data){
+						//TODO: prepare for multiple properties
+						var result = data[property] || "";
+						if(associatedLookupEntityName != ""){
+							if(result!=""){
+								se.retrieveSingleEA([associatedLookupEntityName,result,associatedLookupProperty]).then(function(data){
+									var trueResult = data[associatedLookupProperty];
+									var lookupObj = createLookupObject(result,trueResult,associatedLookupEntityName);
+									console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+lookupObj+"|#|");
+									resolve(lookupObj);
+								});
+							}else{
+								resolve("");
+							}
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+result+"|#|");
+							resolve(result);
+						}
+					});
+				}
+				
+				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+				if(val != ""){
+					if(val[0][property] != undefined && associatedLookupEntityName == ""){
+						console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(val[0][property]||"")+"|#|");
+						resolve((val[0][property]||""));
+					}else{
+						var id = val[0].id.replace(/{|}/g,"");
+						var entity = val[0].entityType;
+						if(typeof(val[0].keyValues)!=="undefined"){
+							var keyValues = val[0].keyValues;
+							if(typeof(val[0].keyValues)==="string"){
+								keyValues = JSON.parse(val[0].keyValues);
+							}
+							var propertyValue = keyValues[property] || keyValues[property+"_Value"];
+							if(propertyValue == undefined){
+								makeRESTcall();
+							}else{
+							/****/
+								if(associatedLookupEntityName != ""){
+									/***wtf wrong ID, correct is not available
+									var lookupObj = createLookupObject(id,propertyValue.value,associatedLookupEntityName);
+									resolve(lookupObj);
+									***/
+									makeRESTcall();
+								}else{
+									console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(propertyValue.value||"")+"|#|");
+									resolve((propertyValue.value||""));
+								}
+							/****/
+							}
+						}else{
+							//rest call to get the data attribute
+							makeRESTcall();
+						}
+					}
+				}else{
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+val+"|#|");
+					resolve(val);
+				}
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Gets field multi lookup property value in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : field name {String,Link}
+	/// @args[1] : property/ies name {String,Link} ["propName"]|["propName1,propName2,propName3"]
+	/// @args[2] : target entity
+	/// @args[3] : associated lookup entity name {String,Link}
+	/// @args[4] : associated lookup property/ies name {String,Link}["propName"]|["propName1,propName2,propName3"]
+	/// </param>
+	/// <note>
+	/// no multiple properties yet
+	/// if only args[0-1] => returns single property value
+	///	if args[0-3] => returns lookup object, args[3] is expected to be name of id field of args[2]
+	/// </note>
+	var getFormMultiLookupValue = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			var d = se._checkForLink(args[3]);
+			var e = se._checkForLink(args[4]);
+			Q.Promise.all([a,b,c,d,e]).then(function(values){
+				var fieldName = values[0];
+				var property = values[1];
+				var target = values[2];
+				var associatedLookupEntityName = values[3]||"";
+				var associatedLookupProperty = values[4]||"";
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue started<<< input: fieldName: '"+fieldName+"' property: '"+property+"' associatedLookupEntityName: '"+associatedLookupEntityName+"' associatedLookupProperty: '"+associatedLookupProperty+"'|#|");
+				var createLookupObject = function(l_Id,l_Name,l_EntityType){
+					var lookupObject = [];
+					lookupObject[0] = {};
+					lookupObject[0].id = "{"+l_Id+"}";
+					lookupObject[0].name = l_Name;
+					lookupObject[0].entityType = l_EntityType;
+					return lookupObject;
+				}
+				var makeRESTcall = function(/*passedResolve*/){
+					if(associatedLookupEntityName != ""){
+						property = "_"+property+"_value"
+					}
+					se.retrieveSingleEA([entity,id,property]).then(function(data){
+						//TODO: prepare for multiple properties
+						var result = data[property] || "";
+						if(associatedLookupEntityName != ""){
+							if(result!=""){
+								se.retrieveSingleEA([associatedLookupEntityName,result,associatedLookupProperty]).then(function(data){
+									var trueResult = data[associatedLookupProperty];
+									var lookupObj = createLookupObject(result,trueResult,associatedLookupEntityName);
+									console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+lookupObj+"|#|");
+									resolve(lookupObj);
+								});
+							}else{
+								resolve("");
+							}
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+result+"|#|");
+							resolve(result);
+						}
+					});
+				}
+				
+				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+				if(val != ""){
+					if(val[0][property] != undefined && associatedLookupEntityName == ""){
+						console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(val[0][property]||"")+"|#|");
+						resolve((val[0][property]||""));
+					}else{
+						var id = val[0].id.replace(/{|}/g,"");
+						var entity = val[0].entityType;
+						if(target.toLowerCase()===entity.toLowerCase()){
+							if(typeof(val[0].keyValues)!=="undefined"){
+								var keyValues = val[0].keyValues;
+								if(typeof(val[0].keyValues)==="string"){
+									keyValues = JSON.parse(val[0].keyValues);
+								}
+								var propertyValue = keyValues[property] || keyValues[property+"_Value"];
+								if(propertyValue == undefined){
+									makeRESTcall();
+								}else{
+								/****/
+									if(associatedLookupEntityName != ""){
+										/***wtf wrong ID, correct is not available
+										var lookupObj = createLookupObject(id,propertyValue.value,associatedLookupEntityName);
+										resolve(lookupObj);
+										***/
+										makeRESTcall();
+									}else{
+										console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(propertyValue.value||"")+"|#|");
+										resolve((propertyValue.value||""));
+									}
+								/****/
+								}
+							}else{
+								//rest call to get the data attribute
+								makeRESTcall();
+							}
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: target entity("+target+") does not match filled entity("+entity+")|#|");
+							resolve("");
+						}
+					}
+				}else{
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+val+"|#|");
+					resolve(val);
+				}
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Gets from entity through REST call, returns complete restCall result
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : ! unique ID !
+	/// @args[1] : entity name {String,Link}
+	/// @args[2] : select property/ies name {String,Link} "propName"|"propName1,propName2,propName3"
+	/// @args[3] : primaryEntityAttribute {String} "propName"
+	/// @args[4] : orderBy property {String} "propName"
+	/// @args[5] : orderBy sign {String} "asc"
+	/// @args[6] : filter/s {Nested Array+Link,Nested Array+String} [["name","eq",{"link":0}],"and",["name2","eq","value"]]
+	/// </param>
+	var getRestData = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var uniqueID = args[0];
+			var a = se._checkForLink(args[1]);
+			var b = se._checkForLink(args[2]);
+			var c = se._checkForLink(args[3]);
+			var e = se._checkForLink(args[4]);
+			var f = se._checkForLink(args[5]);
+			var d = args[6]||"";
+			/** process filter args***/
+			var mapFilter = function(filterItem){
+				return Q.all(filterItem.map(function(item){
+					return se._checkForLink(item);
+				}))
+			}
+			var processFilter = function(arr){
+				return new Q.Promise(function(res,rej){
+					Q.Promise.all(arr).then(function(vals){
+						res(vals);
+					})
+				})
+			}
+			/*****/
+			if(d!=""){
+				var processedFilter = [];
+				for(var i =0;i<d.length;i++){
+					processedFilter.push(mapFilter(d[i]));
+				}
+				d = processFilter(processedFilter);
+			}else{
+				d = se._checkForLink("");
+			}
+			
+			Q.Promise.all([a,b,c,d,e,f]).then(function(values){
+				var entityName = values[0];
+				var select = (values[1]||"").split(",");
+				var primaryEntityAttribute = values[2]||"";
+				var filter = values[3]||"";
+				var orderByProp = values[4]||"";
+				var orderBySign = values[5]||"";
+				var orderByObj = "";
+				if(orderByProp!=""&&orderBySign!=""){
+					orderByObj = {
+						prop:orderByProp,
+						sign:orderBySign
+					}
+				}
+				
+				var url = se._buildServerUrl(entityName,"",select,filter,orderByObj);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getRestData started<<< input: url:'"+url+"'|#|");
+				//uniqueID change
+				//check if already called
+				if(se.cachedCalls[uniqueID+url]){
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>getRestData ended<<< result: '"+"using cached result"+"'|#|");
+					resolve(se.cachedCalls[uniqueID+url]);
+				}else{
+					se.cachedCalls = {}; //clean all previous cachedCalls, for all your twisted needs...
+					se.RestODataGetPromise(url).then(function(data){
+						//var primaryEntityAttributeVal = data[primaryEntityAttribute]||(data.value.length!=0?data.value[0][primaryEntityAttribute]:null)||null;
+						if(data[primaryEntityAttribute]){
+							data[entityName+"id"] = [{
+								"id":data[entityName+"id"],
+								"name":data[primaryEntityAttribute],
+								"entityType":entityName
+							}]
+						}else if(data.value.length!=0){
+							data.value[0][entityName+"id"] = [{
+								"id":data.value[0][entityName+"id"],
+								"name":data.value[0][primaryEntityAttribute],
+								"entityType":entityName
+							}]
+						}
+						se.cachedCalls[uniqueID+url] = data;
+						console.log("|#|Fn: "+se._config.FunctionName+" >>>getRestData ended<<< result: '"+"success"+"'|#|");
+						resolve(data);
+					});
+				
+				}
+			});
+		});
+	}
+	
+	/// <summary>
+	/// get property from getRESTdata[0] - first returned obj.
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	property name {String,Link}
+	/// @args[1]	:	getRestDatal link {Link}
+	/// </param>
+	var resultRestData = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var property = values[0];
+				var restData = values[1];
+				
+				var result = null;
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>resultRestData started<<< input: property:'"+property+"'|#|");
+				if(restData.value&&restData.value.length!=0){
+					result = restData.value[0][property];
+				}else{
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>resultRestData<<< '"+"NO DATA"+"'|#|");
+					result = ""; //set result to Empty String
+					//resolve(null);
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>resultRestData ended<<< result: '"+result+"'|#|");
+				resolve(result);
+			})
+		})
+	}
+	
+	/// <summary>
+	/// SUM property from getRESTdata
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	property name {String,Link}
+	/// @args[1]	:	getRestDatal link {Link}
+	/// </param>
+	var sumRestData = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var property = values[0];
+				var restData = values[1];
+				
+				var result = 0;
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>sumRestData started<<< input: property:'"+property+"'|#|");
+				if(restData.value&&restData.value.length!=0){
+					for(var i = 0;i<restData.value.length;i++){
+						result += restData.value[i][property];
+					}
+				}else{
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>sumRestData<<< '"+"NO DATA"+"'|#|");
+					//resolve(0);
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>sumRestData ended<<< result: '"+result+"'|#|");
+				resolve(result);
+			})
+		})
+	}
+	
+	/// <summary>
+	/// Sets field value in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	field name {String,Link}
+	/// @args[1]	:	field value {String,Link}
+	/// </param>
+	//TODO: type check, value conversions
+	var setFormFieldValue = function(args){//mohlo by mit vic parametru fireOnChange - T/F, //force set submitMode// 
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var fieldName = values[0];
+				var newValue = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldValue started<<< input: fieldName:'"+fieldName+"' newValue: '"+newValue+"'|#|");
+				Xrm.Page.getAttribute(fieldName).setValue(newValue);
+				if(Xrm.Page.getAttribute(fieldName).getSubmitMode()==="never"){
+					Xrm.Page.getAttribute(fieldName).setSubmitMode("always");
+				}
+				//Xrm.Page.getAttribute(fieldName).fireOnChange();
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldValue ended<<< result: '"+"success"+"'|#|");
+				resolve(true);
+			});
+		});
+	}
+
+    /// <summary>
+    /// Sets field value in current form with data from Rest call
+    /// </summary>
+    /// <param name="args" type="array" mayBeNull="false" optional="false" >
+    /// @args[0]	:	field name {String,Link}
+    /// @args[1]	:	retrieved property name {String,Link}
+    /// @args[2]	:	field value {String,Link}
+    /// </param>
+    //TODO: sort out number of results
+    var setRestData = function (args) {
+        var se = this;
+        return new Q.Promise(function (resolve,reject) {
+            var a = se._checkForLink(args[0]);
+            var b = se._checkForLink(args[1]);
+            var c = se._checkForLink(args[2]);
+
+            Q.Promise.all([a,b,c]).then(function (values) {
+                var fieldName = values[0];
+                var propertyName = values[1]||""; //id in case of lookup
+                var retrievedData = values[2];
+				
+				var field = Xrm.Page.getAttribute(fieldName);
+				//single result OR first
+				var newValue = retrievedData[propertyName]||(retrievedData.value.length!=0?retrievedData.value[0][propertyName]:null)||null;
+                console.log("|#|Fn: "+se._config.FunctionName+" >>>setRestData started<<< input: fieldName:'"+fieldName+"' newValue: '"+newValue+"' fromRetrievedProperty: '"+propertyName+"'|#|");
+                field.setValue(newValue);
+                if(field.getSubmitMode()==="never"){
+                    field.setSubmitMode("always");
+                }
+                //field(fieldName).fireOnChange();
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setRestData ended<<< result: '"+"success"+"'|#|");
+                resolve(true);
+            })
+        })
+    }
+	
+	/// <summary>
+	/// Sets field required level in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	field name {String,Link}
+	/// @args[1]	:	required level {String,Link}
+	/// </param>
+	var setFormFieldRequiredLevel = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var fieldName = values[0];
+				var requiredLevel = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldRequiredLevel started<<< input: fieldName:'"+fieldName+"' requiredLevel: '"+requiredLevel+"'|#|");
+				Xrm.Page.getAttribute(fieldName).setRequiredLevel(requiredLevel);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldRequiredLevel ended<<< result: '"+"success"+"'|#|");
+				resolve(true);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Saves the record synchronously with the options to close the form or open a new form after the save is completed.
+	/// Both Xrm.Page.data.save and Xrm.Page.data.entity.save will save the record,
+	///	but Xrm.Page.data.save provides callback functions after the save operation completes.
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	save command {String,Link} ["" | "saveandclose" |"saveandnew"]
+	/// </param>
+	var saveRecord = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			Q.Promise.all([a]).then(function(values){
+				var saveCommand = values[0];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>saveRecord started<<< input: saveCommand:'"+saveCommand+"'|#|");
+				Xrm.Page.data.entity.save(saveCommand);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>saveRecord ended<<< result: '"+"success"+"'|#|");
+				resolve(true);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Procces IF statement
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	operator {String}
+	/// @args[1]	:	left side value {Anything}
+	/// @args[2]	:	right side value {Anything}
+	/// </param>
+	var proccesIfStatement = function(args){
+		var se = this;
+
+		return new Q.Promise(function(resolve,reject){
+			var a = args[0];
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			Q.Promise.all([b,c]).then(function(values){
+				var left = values[0];
+				var right = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement started<<< input: '"+left+" "+a+" "+right+"'|#|");
+				switch(a) {
+					case "==":
+						if(left == right){
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
+							resolve(true);
+							break;
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
+							resolve(false);
+							break;
+						}
+					case "===":
+						if(left === right){
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
+							resolve(true);
+							break;
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
+							resolve(false);
+							break;
+						}
+					case "!=":
+						if(left != right){
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
+							resolve(true);
+							break;
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
+							resolve(false);
+							break;
+						}
+					case "!==":
+						if(left !== right){
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
+							resolve(true);
+							break;
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
+							resolve(false);
+							break;
+						}
+					case ">":
+						if(left > right){
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
+							resolve(true);
+							break;
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
+							resolve(false);
+							break;
+						}
+					case ">=":
+						if(left >= right){
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
+							resolve(true);
+							break;
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
+							resolve(false);
+							break;
+						}
+					case "<":
+						if(left < right){
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
+							resolve(true);
+							break;
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
+							resolve(false);
+							break;
+						}
+					case "<=":
+						if(left <= right){
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
+							resolve(true);
+							break;
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
+							resolve(false);
+							break;
+						}
+				}
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Procces IF END statement
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args	:	none
+	/// </param>
+	var proccesIfEndStatement = function(args){
+		var se = this;
+
+		return new Q.Promise(function(resolve,reject){
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfEndStatement started&ended<<< result: '"+"success"+"'|#|");
+			resolve(true);
+		})
+	}
+	
+	/// <summary>
+	/// Empty start that does nothing
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args	:	none
+	/// </param>
+	var start = function(args){
+		var se = this;
+
+		return new Q.Promise(function(resolve,reject){
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>start started&ended<<< result: '"+"success"+"'|#|");
+			resolve(true);
+		})
+	}
+	
+	/// <summary>
+	/// Create Dialog
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	type {String} [message,loading,confirm,form]
+	/// @args[1]	:	title {String,Link}
+	/// @args[2]	:	message {String,Link}
+	/// @args[3]	:	timeout {Int,Boolean}
+	/// @args[4]	:	??? {Anything}
+	/// </param>
+	var createDialog = function(args){
+		var se = this;
+		//get jQuery, jQueryUI, css...
+		//type = ["confirm","message","form"]
+		console.log("|#|Fn: "+se._config.FunctionName+" >>>start started&ended<<< input: dialogType:'"+args[0]+"'|#|");
+		return se["_generateDialog_"+args[0]](args).then(function(data){
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>createDialog ended<<< result: '"+data+"'|#|");
+			return data;
+		});
+	};
+	
+	var _generateDialog_message = function(args){
+		//check if this
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[1]);	//title
+			var b = se._checkForLink(args[2]);	//message
+			var c = args[3] //timeout close OR false for manual
+			Q.Promise.all([a,b]).then(function(values){
+				var title = values[0];
+				var message = values[1];
+				
+				var dialogHTML = '<div id="ScriptDialog" title="'+title+'">';
+				dialogHTML += '<div class="ui-widget-content">'+message;
+				dialogHTML += '</div></div>';
+				var dialog = $(dialogHTML, window.top.document).dialog({
+					autoOpen: true,
+					height: "auto",
+					width: "auto",
+					modal: true,
+					buttons:{
+						Ok: function(){
+							dialog.dialog( "close" );
+						}
+					},
+					close: function(){
+						console.log("dialog close");
+						dialog.dialog( "destroy" );
+						resolve(true);
+					},
+					create: function(){
+						if(c && typeof(c)=="number"){
+							setTimeout(function(){try{dialog.dialog( "close" );}catch(err){console.log(err);}},c);
+						}
+					}
+				});
+				dialog.parent("div").position({
+					my: "center top",
+					at: "center bottom",
+					of: window.document
+				});
+			})
+		});
+	};
+	
+	var _generateDialog_confirm = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[1]);	//title
+			var b = se._checkForLink(args[2]);	//message
+			var c = args[3] //timeout close OR false for manual
+			Q.Promise.all([a,b]).then(function(values){
+				var title = values[0];
+				var message = values[1];
+				
+				var dialogHTML = '<div id="ScriptDialog" title="'+title+'">';
+				dialogHTML += '<div class="ui-widget">'+message;
+				dialogHTML += '</div></div>';
+				var dialog = $(dialogHTML, window.top.document).dialog({
+					autoOpen: true,
+					height: "auto",
+					width: "auto",
+					modal: true,
+					buttons:{
+						Ok: function(){
+							dialog.dialog( "close" );
+							resolve(true);
+						},
+						Cancel: function(){
+							dialog.dialog( "close" );
+							resolve(false);
+						}
+					},
+					close: function(){
+						console.log("dialog close");
+						dialog.dialog( "destroy" );
+						//resolve(true);
+					},
+					create: function(){
+						if(c && typeof(c)=="number"){
+							setTimeout(function(){try{dialog.dialog( "close" );}catch(err){console.log(err);}},c);
+						}
+					}
+				});
+				dialog.parent("div").position({
+					my: "center top",
+					at: "center bottom",
+					of: window.document
+				});
+			})
+		});
+	};
+	
+	var RestODataGetPromise = function(url){
+		var se = this;
+		return new Q.Promise(function(resolve, reject){
+			$.ajax({
+				type: "GET",
+				contentType: "application/json; charset=utf-8",
+				datatype: "json",
+				url: url,
+				beforeSend: function (XMLHttpRequest) {
+					XMLHttpRequest.setRequestHeader("OData-MaxVersion", "4.0");
+					XMLHttpRequest.setRequestHeader("OData-Version", "4.0");
+					XMLHttpRequest.setRequestHeader("Accept", "application/json");
+					XMLHttpRequest.setRequestHeader("Prefer", "odata.include-annotations=\"*\"");
+				},
+				success: function (data, textStatus, XmlHttpRequest) {
+					resolve(data);
+				},
+				error: function (XmlHttpRequest, textStatus, errorObject) {
+					console.error(textStatus, errorObject);
+					console.log("OData Execution Error Occurred");
+					reject(this);
+				}
+			});
+		});
+	};
+	
+	var retrieveSingleEA = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = _checkForLink(args[0]);
+			var b = _checkForLink(args[1]);
+			var c = _checkForLink(args[2]);
+			
+			Q.Promise.all([a,b,c]).then(function(values){
+				var entity = values[0];
+				var id = values[1];
+				var property = (values[2]||"").split(",");
+				$.ajax({
+					type: "GET",
+					contentType: "application/json; charset=utf-8",
+					datatype: "json",
+					url: _buildServerUrl(entity,id,property),
+					beforeSend: function (XMLHttpRequest) {
+						//XMLHttpRequest.setRequestHeader("Accept", "application/json");
+						XMLHttpRequest.setRequestHeader("OData-MaxVersion", "4.0");
+						XMLHttpRequest.setRequestHeader("OData-Version", "4.0");
+						XMLHttpRequest.setRequestHeader("Accept", "application/json");
+						XMLHttpRequest.setRequestHeader("Prefer", "odata.include-annotations=\"*\"");
+
+					},
+					success: function (data, textStatus, XmlHttpRequest) {
+						resolve(data);
+					},
+					error: function (XmlHttpRequest, textStatus, errorObject) {
+						console.error(textStatus, errorObject);
+						console.log("OData Execution Error Occurred");
+						reject(this);
+					}
+				});
+			});
+		});
+	}
+	
+	var runFunctionByName = function(args){
+		var se = this;
+		var a = args[0];
+		
+		return new Q.Promise(function(resolve,reject){
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>runFunctionByName started<<< input: '"+a+"'|#|");
+			var fcfg = window.ScriptEditor.loadedConfigs.filter(function(c){return c._config.FunctionName===a});
+			if(fcfg.length===1){
+				fcfg[0].run(0).then(function(data){
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>runFunctionByName ended<<< result: '"+"success"+"'|#|");
+					resolve(true);
+				});
+			}
+		})
+	}
+	
+	/// <summary>
+	/// Sets field background color in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	field name {String,Link}
+	/// @args[1]	:	field color {String,Link}
+	/// </param>
+	var setFormFieldColor = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var fieldName = values[0];
+				var color = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldColor started<<< input: fieldName: '"+a+"' color: '"+color+"'|#|");
+				$("*[data-attributename='"+fieldName+"']",window.parent.document)[0].style.background = color;
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldColor ended<<< result: '"+"success"+"'|#|");
+				resolve(true);
+			});
+		});
+	};
+	
+	/// <summary>
+	/// Sets field disabled in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	field name {String,Link}
+	/// @args[1]	:	disabled status {String,Link}
+	/// </param>
+	var setFormFieldDisabled = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var fieldName = values[0];
+				var disabled = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldDisabled started<<< input: fieldName: '"+a+"' disabled: '"+disabled+"'|#|");
+				if(disabled == "true"){
+					Xrm.Page.ui.controls.get(fieldName).setDisabled(true);
+				}else{
+					Xrm.Page.ui.controls.get(fieldName).setDisabled(false);
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldDisabled ended<<< result: '"+"success"+"'|#|");
+				resolve(true);
+			});
+		});
+	};
+	
+		/// <summary> -- >>>>> JHS First test
+	/// Gets field multi lookup property value in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : field name {String,Link}
+	/// @args[1] : property/ies name {String,Link} ["propName"]|["propName1,propName2,propName3"]
+	/// @args[2] : target entity
+	/// @args[3] : associated lookup entity name {String,Link}
+	/// @args[4] : associated lookup property/ies name {String,Link}["propName"]|["propName1,propName2,propName3"]
+	/// </param>
+	/// <note>
+	/// no multiple properties yet
+	/// if only args[0-1] => returns single property value
+	///	if args[0-3] => returns lookup object, args[3] is expected to be name of id field of args[2]
+	/// </note>
+	var getFormMultiLookupValueV2 = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			var d = se._checkForLink(args[3]);
+			var e = se._checkForLink(args[4]);
+			Q.Promise.all([a,b,c,d,e]).then(function(values){
+				var fieldName = values[0];
+				var property = values[1];
+				var target = values[2];
+				var associatedLookupEntityName = values[3]||"";
+				var associatedLookupProperty = values[4]||"";
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue started<<< input: fieldName: '"+fieldName+"' property: '"+property+"' associatedLookupEntityName: '"+associatedLookupEntityName+"' associatedLookupProperty: '"+associatedLookupProperty+"'|#|");
+				var createLookupObject = function(l_Id,l_Name,l_EntityType){
+					var lookupObject = [];
+					lookupObject[0] = {};
+					lookupObject[0].id = "{"+l_Id+"}";
+					lookupObject[0].name = l_Name;
+					lookupObject[0].entityType = l_EntityType;
+					return lookupObject;
+				}
+				var makeRESTcall = function(/*passedResolve*/){
+					if(associatedLookupEntityName != ""){
+						property = "_"+property+"_value"
+					}
+					se.retrieveSingleEA([entity,id,property]).then(function(data){
+						//TODO: prepare for multiple properties
+						var result = data[property] || "";
+						if(associatedLookupEntityName != ""){
+							if(result!=""){
+								/*se.retrieveSingleEA([associatedLookupEntityName,result,associatedLookupProperty]).then(function(data){
+									var trueResult = data[associatedLookupProperty];*/
+									var lookupObj = createLookupObject(result,data[property+"@OData.Community.Display.V1.FormattedValue"],data[property+"@Microsoft.Dynamics.CRM.lookuplogicalname"]);
+									console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+lookupObj+"|#|");
+									resolve(lookupObj);
+								//});
+							}else{
+								resolve("");
+							}
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+result+"|#|");
+							resolve(result);
+						}
+					});
+				}
+				
+				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+				if(val != ""){
+					if(val[0][property] != undefined && associatedLookupEntityName == ""){
+						console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(val[0][property]||"")+"|#|");
+						resolve((val[0][property]||""));
+					}else{
+						var id = val[0].id.replace(/{|}/g,"");
+						var entity = val[0].entityType;
+						if(target.toLowerCase()===entity.toLowerCase()){
+							if(typeof(val[0].keyValues)!=="undefined"){
+								var keyValues = val[0].keyValues;
+								if(typeof(val[0].keyValues)==="string"){
+									keyValues = JSON.parse(val[0].keyValues);
+								}
+								var propertyValue = keyValues[property] || keyValues[property+"_Value"];
+								if(propertyValue == undefined){
+									makeRESTcall();
+								}else{
+								/****/
+									if(associatedLookupEntityName != ""){
+										/***wtf wrong ID, correct is not available
+										var lookupObj = createLookupObject(id,propertyValue.value,associatedLookupEntityName);
+										resolve(lookupObj);
+										***/
+										makeRESTcall();
+									}else{
+										console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(propertyValue.value||"")+"|#|");
+										resolve((propertyValue.value||""));
+									}
+								/****/
+								}
+							}else{
+								//rest call to get the data attribute
+								makeRESTcall();
+							}
+						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: target entity("+target+") does not match filled entity("+entity+")|#|");
+							resolve("");
+						}
+					}
+				}else{
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+val+"|#|");
+					resolve(val);
+				}
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Gets target entity from lookup object
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	field name {String,Link}
+	/// @args[1]	:	field value {String,Link}
+	/// </param>
+	//TODO: type check, value conversions
+	var getLookupType = function(args){//mohlo by mit vic parametru fireOnChange - T/F, //force set submitMode// 
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			//var b = se._checkForLink(args[1]);
+			Q.Promise.all([a]).then(function(values){
+				var lookupObject = values[0];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getLookupType started<<< input: fieldName:'"+lookupObject[0].entityType+"' newValue: '"+lookupObject+"'|#|");
+				/*Xrm.Page.getAttribute(fieldName).setValue(newValue);
+				if(Xrm.Page.getAttribute(fieldName).getSubmitMode()==="never"){
+					Xrm.Page.getAttribute(fieldName).setSubmitMode("always");
+				}*/
+				//Xrm.Page.getAttribute(fieldName).fireOnChange();
+				if(lookupObject[0].entityType != undefined)
+				{
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>getLookupType ended<<< result: '"+"success"+"'|#|");
+					resolve(lookupObject[0].entityType);
+				}
+				else
+				{
+					resolve("");
+				}
+			});
+		});
+	}
+	
+	/// <summary>
+	/// closes opportunity as won/lost
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	won {String,Link}
+	/// </param>
+	var closeOpportunity = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			Q.Promise.all([a]).then(function(values){
+				var won = (values[0]=='true');
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>closeOpportunity started<<< input: won: '"+won+"'|#|");
+				Mscrm.OpportunityCommandActions.opportunityClose(won);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>ended started<<< result: won: '"+"success"+"'|#|");
+				resolve(true);
+			})
+		});
+	}
+	
+	/// <summary>
+	/// Adds notification to form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	notification id {String,Link}
+	/// @args[1]	:	notification level {String,Link}
+	/// @args[1]	:	notification message {String,Link}
+	/// </param>
+	var addNotification = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			Q.Promise.all([a,b,c]).then(function(values){
+				var nId = values[0];
+				var nLevel = values[1];
+				var nMessage = values[2];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>addNotification started<<< input: id: '"+nId+"' message: '"+nMessage+"'|#|");
+				Xrm.Page.ui.setFormNotification(nMessage, nLevel, nId);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>addNotification ended<<< result: '"+"success"+"'|#|");
+				resolve(nId);
+			});
+		});
+	};
+	
+	/// <summary>
+	/// Removes notification from form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	notification id {String,Link}
+	/// </param>
+	var removeNotification = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			Q.Promise.all([a]).then(function(values){
+				var nId = values[0];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>removeNotification started<<< input: id: '"+nId+"'|#|");
+				var result = Xrm.Page.ui.clearFormNotification(nId);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>removeNotification ended<<< result: '"+result+"'|#|");
+				resolve(result);
+			});
+		});
+	};
+	
+	/// <summary>
+	/// gets form type
+	/// returns string:
+	/// 0:Undefined
+	/// 1:Create
+	/// 2:Update
+	/// 3:Read Only
+	/// 4:Disabled
+	/// 6:Bulk Edit
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args	:	none
+	/// </param>
+	var getFormType = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var formType = Xrm.Page.ui.getFormType().toString();
+			resolve(formType);
+		});
+	}
+	
+	/// <summary>
+	/// gets user language
+	/// returns string language lcid
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args	:	none
+	/// </param>
+	var getUserLanguage = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var lcid = Xrm.Page.context.getUserLcid().toString();
+			resolve(lcid);
+		});
+	}
+	
+	/// <summary>
+	/// gets current date
+	/// returns the number of milliseconds between midnight of January 1, 1970 and the current date.
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args	:	none
+	/// </param>
+	var getCurrentDate = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var currentDate = new Date().getTime();
+			resolve(currentDate);
+		});
+	}
+	
+	var assign = function(){
+		var se = this;
+		//assign to correct event/field/button/whatever...
+		if(config.Target.FieldName === "onLoad"){	//onLoad run right away
+			se.run(0);
+		}else if(config.Target.FieldName !== ""){	//addOnChange to Field
+			var fieldName = config.Target.FieldName || "";
+			var eventName = "addOnChange";
+			var control = Xrm.Page.ui.controls.getByName(fieldName);
+			var turboFormControl = Xrm.Page.getAttribute(fieldName);
+			//TODO: decide logic, other cases
+			if(turboFormControl != null){
+				turboFormControl[eventName](function(){
+					se.run(0);
+				});
+			}
+			//if init run is true
+			// if(config.Target.InitRun === true){
+				// se.run(0);
+			// }
+			
+		}
+		
+		//get ui
+		//var controlUi = $("*[data-attributename='"+fieldName+"']");
+		////$("td[id*='"+fieldName+"']").children("div");
+		////$("td[id*='"+fieldName+"']").closest("tr");
+		////$("*[data-attributename='"+fieldName+"']")
+		//
+	}
+	var _runInternal = function(ctx,KEY){
+		var se = ctx;
+		return new Q.Promise(function(resolve,reject){
+			function recurse(key){
+				var current = config.NodeDataArray.filter(function(n){return n.key === key})[0];
+				se[current.fName](current.args)
+				.then(function(data){
+					if(current.nextKey != null){
+						if(current.nextKey.length == 2){
+							if(data === true){
+								recurse(current.nextKey[0])
+							}else{
+								recurse(current.nextKey[1])
+							}
+						}else if(current.nextKey.length == 1){ //only other possibility 
+							recurse(current.nextKey[0])
+						}
+					}else{
+						//console.log("=*=== Function: "+se._config.FunctionName+" Finished ===*=");
+						resolve(true); // Done with processing, trigger the final promise
+					}
+				})
+			}
+			recurse(KEY);
+		})
+	}
+	
+	var run = function (key){
+		var se = this;
+		if(!key){
+			key = 0;
+		}
+		console.log("|#####| Function: "+se._config.FunctionName+" Started |#####|");
+		return _runInternal(se, key)
+			.then(function(data){
+				console.log("|#####| Function: "+se._config.FunctionName+" Finished |#####|");
+				return true;
+			})
+	}
+	
+	return {
+		_config				:	_config,
+		_checkForLink		:	_checkForLink,
+		_constructEntityName:	_constructEntityName,
+		_buildServerUrl		:	_buildServerUrl,
+		_generateDialog_message: _generateDialog_message,
+		_generateDialog_confirm: _generateDialog_confirm,
+		getFormFieldValue	:	getFormFieldValue,
+		getCurrentUser		:	getCurrentUser,
+		getFormLookupValue	:	getFormLookupValue,
+		getRestData			:	getRestData,
+		resultRestData		:	resultRestData,
+		sumRestData			:	sumRestData,
+		setFormFieldValue	:	setFormFieldValue,
+        setRestData         :   setRestData,
+		setFormFieldRequiredLevel: setFormFieldRequiredLevel,
+		retrieveSingleEA	:	retrieveSingleEA,
+		RestODataGetPromise	:	RestODataGetPromise,
+		proccesIfStatement	:	proccesIfStatement,
+		proccesIfEndStatement:proccesIfEndStatement,
+		start				:	start,
+		runFunctionByName	:	runFunctionByName,
+		run					:	run,
+		saveRecord			:	saveRecord,
+		assign				:	assign,
+		createDialog		:	createDialog,
+		proccesStringStatement:	proccesStringStatement,
+		proccesMathStatement:	proccesMathStatement,
+		concatStrings		:	concatStrings,
+		relayValue			:	relayValue,
+		setFormFieldColor	:	setFormFieldColor,
+		setFormFieldDisabled:	setFormFieldDisabled,
+		closeOpportunity	:	closeOpportunity,
+		addNotification		:	addNotification,
+		removeNotification	:	removeNotification,
+		getFormType			:	getFormType,
+		getUserLanguage		:	getUserLanguage,
+		getCurrentDate		:	getCurrentDate,
+		getMultiLookupValueType:getMultiLookupValueType,
+		getFormMultiLookupValue:getFormMultiLookupValue,
+		getLookupType		:	getLookupType,
+		getFormMultiLookupValueV2:getFormMultiLookupValueV2,
+		cachedCalls			:	{}
+	};
+};

@@ -1,0 +1,36 @@
+function loadJQueryCSS_Everywhere(){
+		var url = Xrm.Page.context.getClientUrl();
+
+		var link  = window.document.createElement('link');
+		link.rel  = 'stylesheet';
+		link.type = 'text/css';
+		link.href = url+'/WebResources/se_jquery.ui1.11.4.css';
+		var link2 = window.document.createElement("link");
+		link2.rel  = 'stylesheet';
+		link2.type = 'text/css';
+		link2.href = url+'/WebResources/se_jquery.ui1.11.4.css';
+		var link3 = window.document.createElement("link");
+		link3.rel  = 'stylesheet';
+		link3.type = 'text/css';
+		link3.href = url+'/WebResources/se_jquery.ui1.11.4.css';
+		
+		try{
+			var head  = window.parent.document.getElementsByTagName('head')[0];
+			head.appendChild(link);
+		}catch(er){
+			console.log(er);
+		}
+		try{
+			var head2 = window.document.getElementsByTagName('head')[0];
+			head2.appendChild(link2);
+		}catch(er){
+			console.log(er);
+		}
+		try{
+			var head3 = window.top.document.getElementsByTagName('head')[0];
+			head3.appendChild(link3);
+		}catch(er){
+			console.log(er);
+		}
+}
+loadJQueryCSS_Everywhere();

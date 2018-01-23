@@ -1,0 +1,78 @@
+function OnFormScriptLoad(){
+    var addScript = function(filepath, callback) {
+        if (filepath) {
+            var fileref = document.createElement('script');
+            var done = false;
+            var head = document.getElementsByTagName("head")[0];
+
+            fileref.onload = fileref.onreadystatechange = function () {
+                if (!done && (!this.readyState || this.readyState === "loaded" || this.readyState === "complete")) {
+                    done = true;
+
+                    callback();
+
+                    // Handle memory leak in IE
+                    fileref.onload = fileref.onreadystatechange = null;
+                    if (head && fileref.parentNode) {
+                        head.removeChild(fileref);
+                    }
+                }
+            };
+
+            fileref.setAttribute("type", "text/javascript");
+            fileref.setAttribute("src", filepath);
+
+            head.appendChild(fileref);
+        }
+    }
+    var scriptsConfig = {
+        baseUrl: '../WebResources/',
+        shim: {
+        "jquery-ui": {
+            deps: ['jquery', 'loadJQueryCSS']
+            }
+        },
+        paths: {
+        "q": "se_q",
+        "jquery": "se_jquery2.2.4.min",
+        "jquery-ui": "se_jquery.ui1.11.4",
+        "loadJQueryCSS" : "se_loadJQueryCSS",
+        "ScriptEditor_Main":"se_ScriptEditor_Main"
+        }
+    };
+	var requireCallback = function (){
+		requirejs.config(scriptsConfig);
+
+		requirejs(['jquery','q','jquery-ui','loadJQueryCSS','ScriptEditor_Main'], function( JQ ) {
+			console.log( JQ ) // OK
+			var Q = require('q');
+			console.log(Q); // OK
+			//now I should have private jQuery with jqUI, Q and loaded CSS everywhere as well as registred window.ScriptEditor inside iframes
+			
+			window.ScriptEditor.loadedConfigs = [];
+			//get correct configs
+			var serverUrl = Xrm.Page.context.getClientUrl();
+			var currentEntity = Xrm.Page.data.entity.getEntityName();
+			var currentFormView = Xrm.Page.ui.formSelector.getCurrentItem().getId();
+			var configResourcePath = serverUrl+"/WebResources/se_"+currentEntity+"/"+currentFormView.replace(/-/g,"").toLowerCase()+".json";
+			JQ.get/*JSON*/(configResourcePath,function(data){ //so far only use of jQuery
+				var configs = JSON.parse(data);
+				//var configs = data;
+				for(var i = 0; i<configs.length; i++){
+					window.ScriptEditor.loadedConfigs.push(new ScriptEditor(configs[i],JQ,Q));
+				}
+				//TODO: separate and assign by correct order from configs (?Or Not)
+				for(var j = 0; j<window.ScriptEditor.loadedConfigs.length;j++){
+					window.ScriptEditor.loadedConfigs[j].assign()//correct order
+				}
+			});
+		});
+
+			
+	 }
+
+	var surl = Xrm.Page.context.getClientUrl();
+    surl = surl+"/WebResources/se_require.js";
+    addScript(surl,requireCallback);
+
+}
