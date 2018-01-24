@@ -1,4 +1,4 @@
-<ImportExportXml version="8.1.0000.0359" SolutionPackageVersion="8.1" languagecode="1033" generatedBy="OnPremise" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ImportExportXml version="8.2.0002.0112" SolutionPackageVersion="8.2" languagecode="1033" generatedBy="OnPremise" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <SolutionManifest>
     <UniqueName>ScriptEditor_Master</UniqueName>
     <LocalizedNames>
@@ -7,7 +7,7 @@
     <Descriptions>
       <Description description="First working beta of form loader" languagecode="1033" />
     </Descriptions>
-    <Version>0.0.0039</Version>
+    <Version>0.0.0040</Version>
     <Managed>0</Managed>
     <Publisher>
       <UniqueName>scripteditor</UniqueName>
