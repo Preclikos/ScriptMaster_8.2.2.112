@@ -53,7 +53,11 @@ function OnFormScriptLoad(){
 			//get correct configs
 			var serverUrl = Xrm.Page.context.getClientUrl();
 			var currentEntity = Xrm.Page.data.entity.getEntityName();
-			var currentFormView = Xrm.Page.ui.formSelector.getCurrentItem().getId();
+			if(Xrm.Page.ui.formSelector){
+				var currentFormView = Xrm.Page.ui.formSelector.getCurrentItem().getId();
+			}else{//try to obtain quick create form id
+				var currentFormView = Xrm.Page.context.getQueryStringParameters()._CreateFromId.replace(/{|}/g,"");
+			}
 			var configResourcePath = serverUrl+"/WebResources/se_"+currentEntity+"/"+currentFormView.replace(/-/g,"").toLowerCase()+".json";
 			JQ.get/*JSON*/(configResourcePath,function(data){ //so far only use of jQuery
 				var configs = JSON.parse(data);
