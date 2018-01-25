@@ -1227,6 +1227,42 @@ window.ScriptEditor = function(config,$,Q)	{
 		});
 	};
 	
+	/// <summary>
+	/// Sets tab/section disabled in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	disabled status {String,Link}
+	/// @args[1]	:	tab name {String,Link}
+	/// @args[2]	:	section name {String,Link}
+	/// </param>
+	var setFormPartDisabled = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			Q.Promise.all([a,b,c]).then(function(values){
+				var visible = values[0];
+				var tabName = values[1];
+				var sectionName = values[1]||"";
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormPartDisabled started<<< input: tabName: '"+tabName+"' sectionName: '"+sectionName+"' visible: '"+visible+"'|#|");
+				var control;
+				if(sectionName!=""){
+					control = Xrm.Page.ui.tabs.get(tabName).sections.get(sectionName);
+				}else{
+					control = Xrm.Page.ui.tabs.get(tabName);
+				}
+				if(visible == "true"){
+					control.setVisible(true);
+				}else{
+					control.setVisible(false);
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormPartDisabled ended<<< result: '"+"success"+"'|#|");
+				resolve(true);
+			});
+		});
+	};
+	
 		/// <summary> -- >>>>> JHS First test
 	/// Gets field multi lookup property value in current form
 	/// </summary>
@@ -1591,6 +1627,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		relayValue			:	relayValue,
 		setFormFieldColor	:	setFormFieldColor,
 		setFormFieldDisabled:	setFormFieldDisabled,
+		setFormPartDisabled	:	setFormPartDisabled,
 		closeOpportunity	:	closeOpportunity,
 		addNotification		:	addNotification,
 		removeNotification	:	removeNotification,
