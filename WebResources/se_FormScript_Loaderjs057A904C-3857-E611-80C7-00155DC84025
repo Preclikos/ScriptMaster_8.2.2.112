@@ -56,7 +56,7 @@ function OnFormScriptLoad(){
 			if(Xrm.Page.ui.formSelector){
 				var currentFormView = Xrm.Page.ui.formSelector.getCurrentItem().getId();
 			}else{//try to obtain quick create form id
-				var currentFormView = Xrm.Page.context.getQueryStringParameters()._CreateFromId.replace(/{|}/g,"");
+				var currentFormView = Xrm.Page.data.$1R_1.$8_1.$1D_1.$4_0; //Let's just hope this doesn't change... \s
 			}
 			var configResourcePath = serverUrl+"/WebResources/se_"+currentEntity+"/"+currentFormView.replace(/-/g,"").toLowerCase()+".json";
 			JQ.get/*JSON*/(configResourcePath,function(data){ //so far only use of jQuery
