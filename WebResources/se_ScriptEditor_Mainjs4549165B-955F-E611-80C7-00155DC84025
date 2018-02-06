@@ -1244,7 +1244,7 @@ window.ScriptEditor = function(config,$,Q)	{
 			Q.Promise.all([a,b,c]).then(function(values){
 				var visible = values[0];
 				var tabName = values[1];
-				var sectionName = values[1]||"";
+				var sectionName = values[2]||"";
 				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormPartDisabled started<<< input: tabName: '"+tabName+"' sectionName: '"+sectionName+"' visible: '"+visible+"'|#|");
 				var control;
 				if(sectionName!=""){
