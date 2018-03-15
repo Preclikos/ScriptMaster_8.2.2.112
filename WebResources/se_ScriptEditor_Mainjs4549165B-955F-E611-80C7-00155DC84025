@@ -437,6 +437,7 @@ window.ScriptEditor = function(config,$,Q)	{
 					}else{
 						var id = val[0].id.replace(/{|}/g,"");
 						var entity = val[0].entityType;
+						/****
 						if(typeof(val[0].keyValues)!=="undefined"){
 							var keyValues = val[0].keyValues;
 							if(typeof(val[0].keyValues)==="string"){
@@ -446,23 +447,18 @@ window.ScriptEditor = function(config,$,Q)	{
 							if(propertyValue == undefined){
 								makeRESTcall();
 							}else{
-							/****/
 								if(associatedLookupEntityName != ""){
-									/***wtf wrong ID, correct is not available
-									var lookupObj = createLookupObject(id,propertyValue.value,associatedLookupEntityName);
-									resolve(lookupObj);
-									***/
 									makeRESTcall();
 								}else{
 									console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(propertyValue.value||"")+"|#|");
 									resolve((propertyValue.value||""));
 								}
-							/****/
 							}
 						}else{
+						/****/
 							//rest call to get the data attribute
 							makeRESTcall();
-						}
+						//}
 					}
 				}else{
 					console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+val+"|#|");
