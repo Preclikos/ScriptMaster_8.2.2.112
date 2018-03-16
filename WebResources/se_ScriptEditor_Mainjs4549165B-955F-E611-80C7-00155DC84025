@@ -301,8 +301,11 @@ window.ScriptEditor = function(config,$,Q)	{
 							val = val.getTime();
 						}
 						break;
+					case: "boolean":
+						val = Xrm.Page.getAttribute(fieldName).getValue();
+						break;
 					default:
-					val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+						val = Xrm.Page.getAttribute(fieldName).getValue() || "";
 						break;
 				}
 				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormFieldValue ended<<< result: "+val+"|#|");
