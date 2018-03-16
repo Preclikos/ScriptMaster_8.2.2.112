@@ -500,7 +500,7 @@ window.ScriptEditor = function(config,$,Q)	{
 				var target = values[2];
 				var associatedLookupEntityName = values[3]||"";
 				var associatedLookupProperty = values[4]||"";
-				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue started<<< input: fieldName: '"+fieldName+"' property: '"+property+"' associatedLookupEntityName: '"+associatedLookupEntityName+"' associatedLookupProperty: '"+associatedLookupProperty+"'|#|");
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormMultiLookupValue started<<< input: fieldName: '"+fieldName+"' property: '"+property+"' associatedLookupEntityName: '"+associatedLookupEntityName+"' associatedLookupProperty: '"+associatedLookupProperty+"'|#|");
 				var createLookupObject = function(l_Id,l_Name,l_EntityType){
 					var lookupObject = [];
 					lookupObject[0] = {};
@@ -521,14 +521,14 @@ window.ScriptEditor = function(config,$,Q)	{
 								se.retrieveSingleEA([associatedLookupEntityName,result,associatedLookupProperty]).then(function(data){
 									var trueResult = data[associatedLookupProperty];
 									var lookupObj = createLookupObject(result,trueResult,associatedLookupEntityName);
-									console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+lookupObj+"|#|");
+									console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormMultiLookupValue ended<<< result: "+lookupObj+"|#|");
 									resolve(lookupObj);
 								});
 							}else{
 								resolve("");
 							}
 						}else{
-							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+result+"|#|");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormMultiLookupValue ended<<< result: "+result+"|#|");
 							resolve(result);
 						}
 					});
@@ -537,12 +537,13 @@ window.ScriptEditor = function(config,$,Q)	{
 				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
 				if(val != ""){
 					if(val[0][property] != undefined && associatedLookupEntityName == ""){
-						console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(val[0][property]||"")+"|#|");
+						console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormMultiLookupValue ended<<< result: "+(val[0][property]||"")+"|#|");
 						resolve((val[0][property]||""));
 					}else{
 						var id = val[0].id.replace(/{|}/g,"");
 						var entity = val[0].entityType;
 						if(target.toLowerCase()===entity.toLowerCase()){
+							/****
 							if(typeof(val[0].keyValues)!=="undefined"){
 								var keyValues = val[0].keyValues;
 								if(typeof(val[0].keyValues)==="string"){
@@ -552,30 +553,25 @@ window.ScriptEditor = function(config,$,Q)	{
 								if(propertyValue == undefined){
 									makeRESTcall();
 								}else{
-								/****/
 									if(associatedLookupEntityName != ""){
-										/***wtf wrong ID, correct is not available
-										var lookupObj = createLookupObject(id,propertyValue.value,associatedLookupEntityName);
-										resolve(lookupObj);
-										***/
 										makeRESTcall();
 									}else{
-										console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+(propertyValue.value||"")+"|#|");
+										console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormMultiLookupValue ended<<< result: "+(propertyValue.value||"")+"|#|");
 										resolve((propertyValue.value||""));
 									}
-								/****/
 								}
 							}else{
+							/****/
 								//rest call to get the data attribute
 								makeRESTcall();
-							}
+							//}
 						}else{
-							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: target entity("+target+") does not match filled entity("+entity+")|#|");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormMultiLookupValue ended<<< result: target entity("+target+") does not match filled entity("+entity+")|#|");
 							resolve("");
 						}
 					}
 				}else{
-					console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+val+"|#|");
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormMultiLookupValue ended<<< result: "+val+"|#|");
 					resolve(val);
 				}
 			});
