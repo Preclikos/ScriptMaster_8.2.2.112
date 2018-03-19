@@ -484,7 +484,7 @@ window.ScriptEditor = function(config,$,Q)	{
 	/// <note>
 	/// no multiple properties yet
 	/// if only args[0-1] => returns single property value
-	///	if args[0-3] => returns lookup object, args[3] is expected to be name of id field of args[2]
+	///	if args[0-3] => returns lookup object, args[4] is expected to be name of id field of args[3]
 	/// </note>
 	var getFormMultiLookupValue = function(args){
 		var se = this;
@@ -515,7 +515,7 @@ window.ScriptEditor = function(config,$,Q)	{
 					}
 					se.retrieveSingleEA([entity,id,property]).then(function(data){
 						//TODO: prepare for multiple properties
-						var result = data[property] || "";
+						var result = data[property]!==false?(data[property] || ""):data[property];
 						if(associatedLookupEntityName != ""){
 							if(result!=""){
 								se.retrieveSingleEA([associatedLookupEntityName,result,associatedLookupProperty]).then(function(data){
