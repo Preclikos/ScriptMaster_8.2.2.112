@@ -15,20 +15,29 @@ function loadJQueryCSS_Everywhere(){
 		link3.href = url+'/WebResources/se_jquery.ui1.11.4.css';
 		
 		try{
-			var head  = window.parent.document.getElementsByTagName('head')[0];
-			head.appendChild(link);
+			if(window.parent.se_jquery_ui_loaded === undefined){
+				var head  = window.parent.document.getElementsByTagName('head')[0];
+				head.appendChild(link);
+				window.parent.se_jquery_ui_loaded = true;
+			}
 		}catch(er){
 			console.log(er);
 		}
 		try{
-			var head2 = window.document.getElementsByTagName('head')[0];
-			head2.appendChild(link2);
+			if(window.se_jquery_ui_loaded === undefined){
+				var head2 = window.document.getElementsByTagName('head')[0];
+				head2.appendChild(link2);
+				window.se_jquery_ui_loaded = true;
+			}
 		}catch(er){
 			console.log(er);
 		}
 		try{
-			var head3 = window.top.document.getElementsByTagName('head')[0];
-			head3.appendChild(link3);
+			if(window.top.se_jquery_ui_loaded === undefined){
+				var head3 = window.top.document.getElementsByTagName('head')[0];
+				head3.appendChild(link3);
+				window.top.se_jquery_ui_loaded = true;
+			}
 		}catch(er){
 			console.log(er);
 		}
