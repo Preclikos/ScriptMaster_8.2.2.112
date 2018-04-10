@@ -1196,6 +1196,33 @@ window.ScriptEditor = function(config,$,Q)	{
 	};
 	
 	/// <summary>
+	/// Sets field visibility in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	field name {String,Link}
+	/// @args[1]	:	visibility status {String,Link}
+	/// </param>
+	var setFormFieldVisible = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var fieldName = values[0];
+				var visible = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldDisabled started<<< input: fieldName: '"+a+"' disabled: '"+visible+"'|#|");
+				if(visible == "true"){
+					Xrm.Page.ui.controls.get(fieldName).setVisible(true);
+				}else{
+					Xrm.Page.ui.controls.get(fieldName).setVisible(false);
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldDisabled ended<<< result: '"+"success"+"'|#|");
+				resolve(true);
+			});
+		});
+	};
+	
+	/// <summary>
 	/// Sets field disabled in current form
 	/// </summary>
 	/// <param name="args" type="array" mayBeNull="false" optional="false" >
@@ -1623,6 +1650,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		setFormFieldColor	:	setFormFieldColor,
 		setFormFieldDisabled:	setFormFieldDisabled,
 		setFormPartDisabled	:	setFormPartDisabled,
+		setFormFieldVisible	:	setFormFieldVisible,											
 		closeOpportunity	:	closeOpportunity,
 		addNotification		:	addNotification,
 		removeNotification	:	removeNotification,
